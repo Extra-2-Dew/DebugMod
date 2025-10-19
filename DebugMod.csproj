@@ -1,0 +1,81 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<RootNamespace>ID2</RootNamespace>
+		<AssemblyName>DebugMod</AssemblyName>
+		<AssemblyTitle>DebugMod</AssemblyTitle>
+		<Product>DebugMod</Product>
+		<Description>A mod for Ittle Dew 2.</Description>
+		<TargetFramework>net35</TargetFramework>
+		<LangVersion>Latest</LangVersion>
+		<OutputPath>$(SolutionDir)Build\</OutputPath>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+	</PropertyGroup>
+
+	<Import Project="config.targets" Condition="Exists('config.targets')" />
+	
+	<!-- Custom properties-->
+	<PropertyGroup>
+		<ModName>DebugMod</ModName>
+		<ExportDir>$(OutputPath)\Export</ExportDir>
+		<ManagedDir>$(GameInstallPath)\ID2_Data\Managed</ManagedDir>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
+		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+		<PackageReference Include="BepInEx.Core" Version="5.*" />
+		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+		<PackageReference Include="UnityEngine.Modules" Version="5.6.7" IncludeAssets="compile" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="Assembly-CSharp" Publicize="true">
+			<HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="Assembly-CSharp-firstpass" Publicize="true">
+			<HintPath>$(ManagedDir)\Assembly-CSharp-firstpass.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="UnityEngine.UI">
+			<HintPath>$(ManagedDir)\UnityEngine.UI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<Target Name="LoadChecks" BeforeTargets="PrepareForBuild">
+		<!-- Warn if GameInstallPath is not defined -->
+		<Error
+			Condition="'$(GameInstallPath)' == '' Or !Exists('$(GameInstallPath)')"
+			Text="GameInstallPath not found or specified. Please define GameInstallPath in the config.targets file."
+			File="$(ProjectDir)config.targets"
+		/>
+	</Target>
+
+	<Target Name="PreBuildChecks" BeforeTargets="PreBuildEvent">
+		<!-- Error if PluginsPath is not defined -->
+		<Error Condition="'$(PluginsPath)' == '' Or !Exists('$(PluginsPath)')" Text="PluginsPath not found or specified. Please define PluginsPath in the config.targets file." />
+
+		<!-- Warn if README is missing -->
+		<Warning Condition="!Exists('$(ProjectDir)\README.md')" Text="README.md not found. The post-build zip will not include a README." />
+	</Target>
+
+	<Target Name="CopyMod" AfterTargets="PostBuildEvent">
+		<RemoveDir Directories="$(ExportDir)\" />
+		<MakeDir Directories="$(ExportDir)\" />
+		<MakeDir Directories="$(ExportDir)\zip\" />
+		<MakeDir Condition="!Exists('$(PluginsPath)\$(ModName)\')" Directories="$(PluginsPath)\$(ModName)\" />
+		<Copy SourceFiles="$(TargetPath);$(TargetDir)\$(TargetName).pdb" DestinationFolder="$(PluginsPath)\$(ModName)\" />
+		<Copy SourceFiles="$(ProjectDir)\README.md;$(TargetPath);$(TargetDir)\$(TargetName).pdb" DestinationFolder="$(ExportDir)\zip\" />
+		<ZipDirectory SourceDirectory="$(ExportDir)\zip\" DestinationFile="$(ExportDir)\$(ModName).zip" />
+		<RemoveDir Directories="$(ExportDir)\zip\" />
+		<GetFileHash Files="$(ExportDir)\$(ModName).zip" Algorithm="SHA256">
+			<Output TaskParameter="Items" ItemName="FilesWithHashes" />
+		</GetFileHash>
+		<WriteLinesToFile File="$(ExportDir)\SHA.txt" Lines="@(FilesWithHashes->'%(FileHash)')" Overwrite="true" Encoding="UTF-8" />
+	</Target>
+
+	<ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+	</ItemGroup>
+</Project>
