@@ -6,6 +6,7 @@ using UnityEngine;
 
 namespace ID2.DebugMod;
 [BepInPlugin("id2.DebugMod", "DebugMod", "0.1.0")]
+[BepInDependency("ModCore")]
 public class Plugin : BaseUnityPlugin
 {
 	internal static new ManualLogSource Logger;
@@ -23,6 +24,7 @@ public class Plugin : BaseUnityPlugin
 		try
 		{
 			// Mod initialization code here
+			DebugMod debugMod = new GameObject("DebugMod").AddComponent<DebugMod>();
 
 			var harmony = new Harmony("id2.DebugMod");
 			harmony.PatchAll();
@@ -30,6 +32,14 @@ public class Plugin : BaseUnityPlugin
 		catch (System.Exception err)
 		{
 			Logger.LogError(err);
+		}
+	}
+
+	private void Update()
+	{
+		if (Input.GetKeyDown("t"))
+		{
+			Options.Test();
 		}
 	}
 

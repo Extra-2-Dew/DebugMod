@@ -41,6 +41,10 @@
 			<HintPath>$(ManagedDir)\UnityEngine.UI.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
+		<Reference Include="ModCore">
+			<HintPath>$(PluginsPath)\ModCore\ModCore.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
 	</ItemGroup>
 
 	<Target Name="LoadChecks" BeforeTargets="PrepareForBuild">
