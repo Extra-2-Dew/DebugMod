@@ -1,4 +1,5 @@
-﻿using System;
+﻿using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,8 +17,8 @@ internal class CollisionViewer : MonoBehaviour
 		Trigger,
 	}
 
-	private static readonly List<ColliderTracker> activeColliders = new();
-	private static readonly Dictionary<ColliderTracker, DrawnColliderInfo> drawnColliders = new();
+	private static readonly List<BC_Collider> trackedColliders = new();
+	private static readonly Dictionary<BC_Collider, DrawnColliderInfo> drawnColliders = new();
 	private readonly Dictionary<ColliderType, string> colliderColors = new()
 	{
 		{ ColliderType.Entity, "#ffff00" },
@@ -34,9 +35,10 @@ internal class CollisionViewer : MonoBehaviour
 		new(ColliderType.Hazard, t => t.GetComponent<DamageArea>() || t.GetComponent<EnvirodeathArea>()),
 		new(ColliderType.Pushable, t => t.GetComponent<RoomPushable>()),
 		new(ColliderType.Transition, t => t.GetComponent<SceneDoor>() || t.GetComponent<RoomDoor>()),
-		new(ColliderType.Static, t => t.Collider.IsStatic),
-		new(ColliderType.Trigger, t => t.Collider.IsTrigger),
+		new(ColliderType.Static, t => t.IsStatic),
+		new(ColliderType.Trigger, t => t.IsTrigger),
 	};
+	private readonly int dynamiteLayer = LayerMask.NameToLayer("Dynamite");
 	private Transform lineHolder;
 	private Transform lineHolderAABB;
 	private Transform lineHolderOBB;
@@ -51,6 +53,7 @@ internal class CollisionViewer : MonoBehaviour
 	{
 		Events.OnPlayerSpawn += OnPlayerSpawn;
 		Init();
+
 		Logger.Log("Collision viewer is enabled.");
 	}
 
@@ -58,10 +61,6 @@ internal class CollisionViewer : MonoBehaviour
 	{
 		Events.OnPlayerSpawn -= OnPlayerSpawn;
 
-		for (int i = activeColliders.Count - 1; i >= 0; i--)
-			Unregister(activeColliders[i]);
-
-		activeColliders.Clear();
 		drawnColliders.Clear();
 		Destroy(lineHolder.gameObject);
 
@@ -70,47 +69,31 @@ internal class CollisionViewer : MonoBehaviour
 
 	private void Update()
 	{
-		foreach (ColliderTracker tracker in activeColliders)
-			DrawOrUpdateCollider(tracker);
+		foreach (BC_Collider collider in trackedColliders)
+			DrawOrUpdateCollider(collider);
 	}
 
-	public static void Register(ColliderTracker tracker)
+	private static void TrackCollider(BC_Collider collider)
 	{
-		if (!activeColliders.Contains(tracker))
-			activeColliders.Add(tracker);
+		trackedColliders.Add(collider);
 	}
 
-	public static void Unregister(ColliderTracker tracker)
+	private static void UntrackCollider(BC_Collider collider)
 	{
-		if (!activeColliders.Contains(tracker))
+		trackedColliders.Remove(collider);
+
+		if (!drawnColliders.ContainsKey(collider))
 			return;
 
-		activeColliders.Remove(tracker);
-		Hide(tracker);
-		Destroy(tracker);
+		Destroy(drawnColliders[collider].lineRenderer);
+		drawnColliders.Remove(collider);
 	}
 
-	public static void Show(ColliderTracker tracker)
+	private void DrawOrUpdateCollider(BC_Collider collider)
 	{
-		Register(tracker);
-	}
-
-	public static void Hide(ColliderTracker tracker)
-	{
-		activeColliders.Remove(tracker);
-
-		if (!drawnColliders.ContainsKey(tracker))
-			return;
-
-		Destroy(drawnColliders[tracker].lineRenderer);
-		drawnColliders.Remove(tracker);
-	}
-
-	private void DrawOrUpdateCollider(ColliderTracker tracker)
-	{
-		Vector3 pos = tracker.transform.position;
-		Quaternion rot = tracker.transform.rotation;
-		bool hasInfo = drawnColliders.TryGetValue(tracker, out DrawnColliderInfo drawInfo);
+		Vector3 pos = collider.transform.position;
+		Quaternion rot = collider.transform.rotation;
+		bool hasInfo = drawnColliders.TryGetValue(collider, out DrawnColliderInfo drawInfo);
 
 		// If collider has already been drawn and it hasn't updated, don't redraw it
 		if (hasInfo && drawInfo.lastPosition == pos && drawInfo.lastRotation == rot)
@@ -120,60 +103,38 @@ internal class CollisionViewer : MonoBehaviour
 		if (hasInfo && drawInfo.lineRenderer != null)
 			Destroy(drawInfo.lineRenderer.gameObject);
 
-		// Redraw the collider
-		LineRenderer newLineRenderer = null;
-		ColliderType? colType = GetColliderType(tracker);
+		ColliderType? colType = GetColliderType(collider);
 
 		if (colType == null)
 			return;
 
 		Color color = GetColorForColliderType((ColliderType)colType);
 
-		switch (tracker.Shape)
-		{
-			case BC_AABB aabb:
-				newLineRenderer = CollisionDrawer.DrawAABB(aabb, Vector3.zero, color, lineHolderAABB);
-				break;
-			case BC_OBB obb:
-				if (tracker.Layer == LayerMask.NameToLayer("Dynamite"))
-					obb.P = new Vector3(tracker.transform.position.x, obb.P.y, tracker.transform.position.z);
+		// Update dynamite's position with each spawn
+		if (collider.Shape is BC_OBB dyna && collider.Layer == dynamiteLayer)
+			dyna.P = new Vector3(collider.transform.position.x, dyna.P.y, collider.transform.position.z);
 
-				newLineRenderer = CollisionDrawer.DrawOBB(obb, Vector3.zero, color, lineHolderOBB);
-				break;
-			case BC_Cylinder8 cylinder8:
-				newLineRenderer = CollisionDrawer.DrawCylinder(cylinder8, Vector3.zero, color, lineHolderCylinder8);
-				break;
-			case BC_CylinderN cylinderN:
-				newLineRenderer = CollisionDrawer.DrawCylinder(cylinderN, Vector3.zero, color, lineHolderCylinderN);
-				break;
-			case BC_Sphere sphere:
-				newLineRenderer = CollisionDrawer.DrawSphere(sphere, Vector3.zero, color, 32, lineHolderSphere);
-				break;
-			case BC_Prism prism:
-				newLineRenderer = CollisionDrawer.DrawPrism(prism, Vector3.zero, color, lineHolderPrism);
-				break;
-			case BC_Plane plane:
-				newLineRenderer = CollisionDrawer.DrawPlane(plane, Vector3.zero, color, lineHolderPlane);
-				break;
-			case BC_Point point:
-				newLineRenderer = CollisionDrawer.DrawPoint(point, Vector3.zero, color, 0.05f, 16, lineHolderPoint);
-				break;
-		}
+		LineRenderer newLineRenderer = collider.Shape switch
+		{
+			BC_AABB aabb => CollisionDrawer.DrawAABB(aabb, Vector3.zero, color, lineHolderAABB),
+			BC_OBB obb => CollisionDrawer.DrawOBB(obb, Vector3.zero, color, lineHolderOBB),
+			BC_Cylinder8 cylinder8 => CollisionDrawer.DrawCylinder(cylinder8, Vector3.zero, color, lineHolderCylinder8),
+			BC_CylinderN cylinderN => CollisionDrawer.DrawCylinder(cylinderN, Vector3.zero, color, lineHolderCylinderN),
+			BC_Sphere sphere => CollisionDrawer.DrawSphere(sphere, Vector3.zero, color, 32, lineHolderSphere),
+			BC_Prism prism => CollisionDrawer.DrawPrism(prism, Vector3.zero, color, lineHolderPrism),
+			BC_Plane plane => CollisionDrawer.DrawPlane(plane, Vector3.zero, color, lineHolderPlane),
+			BC_Point point => CollisionDrawer.DrawPoint(point, Vector3.zero, color, 0.05f, 16, lineHolderPoint),
+			_ => null
+		};
 
 		drawInfo.lineRenderer = newLineRenderer;
 		drawInfo.lastPosition = pos;
 		drawInfo.lastRotation = rot;
-		drawnColliders[tracker] = drawInfo;
+		drawnColliders[collider] = drawInfo;
 	}
 
 	private void Init()
 	{
-		foreach (BC_Collider collider in Resources.FindObjectsOfTypeAll<BC_Collider>())
-		{
-			if (collider.GetComponent<ColliderTracker>() == null)
-				collider.gameObject.AddComponent<ColliderTracker>();
-		}
-
 		// Setup line parents
 		lineHolder = new GameObject("DebugMod_CollisionViewerLines").transform;
 		lineHolderAABB = new GameObject("LineHolder_AABB").transform;
@@ -199,15 +160,15 @@ internal class CollisionViewer : MonoBehaviour
 		Init();
 	}
 
-	private ColliderType? GetColliderType(ColliderTracker tracker)
+	private ColliderType? GetColliderType(BC_Collider collider)
 	{
 		// Skip layer exclusions
-		if ((layerExclusions & (1 << tracker.Layer)) != 0)
+		if ((layerExclusions & (1 << collider.Layer)) != 0)
 			return null;
 
 		for (int i = 0; i < colliderMappings.Length; i++)
 		{
-			if (colliderMappings[i].condition(tracker))
+			if (colliderMappings[i].condition(collider))
 				return colliderMappings[i].type;
 		}
 
@@ -235,12 +196,28 @@ internal class CollisionViewer : MonoBehaviour
 	private readonly struct ColliderMapping
 	{
 		public readonly ColliderType type;
-		public readonly Func<ColliderTracker, bool> condition;
+		public readonly Func<BC_Collider, bool> condition;
 
-		public ColliderMapping(ColliderType type, Func<ColliderTracker, bool> condition)
+		public ColliderMapping(ColliderType type, Func<BC_Collider, bool> condition)
 		{
 			this.type = type;
 			this.condition = condition;
+		}
+	}
+
+	[HarmonyPatch]
+	private class Patches
+	{
+		[HarmonyPostfix, HarmonyPatch(typeof(BC_ColliderHolder), nameof(BC_ColliderHolder.AddCollider))]
+		private static void TrackColliders(ref BC_Collider collider)
+		{
+			TrackCollider(collider);
+		}
+
+		[HarmonyPostfix, HarmonyPatch(typeof(BC_ColliderHolder), nameof(BC_ColliderHolder.RemoveCollider))]
+		private static void UntrackColliders(ref BC_Collider collider)
+		{
+			UntrackCollider(collider);
 		}
 	}
 }

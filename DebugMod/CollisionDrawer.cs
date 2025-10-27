@@ -4,6 +4,9 @@ namespace ID2.DebugMod;
 
 internal class CollisionDrawer
 {
+	private static readonly int layerForColliders = LayerMask.NameToLayer("BlockPlayer2");
+	private static Camera collidersCamera;
+
 	public static LineRenderer DrawOBB(BC_OBB obb, Vector3 offset, Color color, Transform parent = null)
 	{
 		return DrawBox(obb.GetCorner, offset, color, parent);
@@ -16,11 +19,7 @@ internal class CollisionDrawer
 
 	public static LineRenderer DrawSphere(BC_Sphere S, Vector3 offset, Color color, int steps = 32, Transform parent = null)
 	{
-		// Create a GameObject for the sphere lines
-		GameObject go = new GameObject("Sphere_Line");
-		if (parent != null) go.transform.parent = parent;
-
-		LineRenderer lr = go.AddComponent<LineRenderer>();
+		LineRenderer lr = CreateLineRenderer("Sphere_Line", parent);
 		lr.positionCount = steps * 6; // 3 circles, each with 'steps' segments, each segment has 2 vertices
 		lr.startWidth = 0.02f;
 		lr.endWidth = 0.02f;
@@ -60,10 +59,7 @@ internal class CollisionDrawer
 
 	public static LineRenderer DrawCylinder(BC_Cylinder8 cyl, Vector3 offset, Color color, Transform parent = null)
 	{
-		GameObject go = new GameObject("Cylinder_Line");
-		if (parent != null) go.transform.parent = parent;
-
-		LineRenderer lr = go.AddComponent<LineRenderer>();
+		LineRenderer lr = CreateLineRenderer("Cylinder_Line", parent);
 		lr.startWidth = 0.02f;
 		lr.endWidth = 0.02f;
 		lr.material = new Material(Shader.Find("Sprites/Default"));
@@ -106,10 +102,7 @@ internal class CollisionDrawer
 
 	public static LineRenderer DrawCylinder(BC_CylinderN cyl, Vector3 offset, Color color, Transform parent = null)
 	{
-		GameObject go = new GameObject("CylinderN_Line");
-		if (parent != null) go.transform.parent = parent;
-
-		LineRenderer lr = go.AddComponent<LineRenderer>();
+		LineRenderer lr = CreateLineRenderer("Cylinder_Line", parent);
 		lr.startWidth = 0.02f;
 		lr.endWidth = 0.02f;
 		lr.material = new Material(Shader.Find("Sprites/Default"));
@@ -152,10 +145,7 @@ internal class CollisionDrawer
 
 	public static LineRenderer DrawPrism(BC_Prism prism, Vector3 offset, Color color, Transform parent = null)
 	{
-		GameObject go = new GameObject("Prism_Line");
-		if (parent != null) go.transform.parent = parent;
-
-		LineRenderer lr = go.AddComponent<LineRenderer>();
+		LineRenderer lr = CreateLineRenderer("Prism_Line", parent);
 		lr.startWidth = lr.endWidth = 0.02f;
 		lr.material = new Material(Shader.Find("Sprites/Default"));
 		lr.startColor = lr.endColor = color;
@@ -178,10 +168,7 @@ internal class CollisionDrawer
 
 	public static LineRenderer DrawPlane(BC_Plane plane, Vector3 offset, Color color, Transform parent = null)
 	{
-		GameObject go = new GameObject("Plane_Line");
-		if (parent != null) go.transform.parent = parent;
-
-		LineRenderer lr = go.AddComponent<LineRenderer>();
+		LineRenderer lr = CreateLineRenderer("Plane_Line", parent);
 		lr.startWidth = lr.endWidth = 0.02f;
 		lr.material = new Material(Shader.Find("Sprites/Default"));
 		lr.startColor = lr.endColor = color;
@@ -206,16 +193,49 @@ internal class CollisionDrawer
 
 	public static LineRenderer DrawPoint(BC_Point point, Vector3 offset, Color color, float radius = 0.05f, int steps = 16, Transform parent = null)
 	{
-		GameObject go = new GameObject("Point_Line");
-		if (parent != null) go.transform.parent = parent;
+		return DrawCircle(point.P, offset, color, radius, steps, parent);
+	}
 
-		LineRenderer lr = go.AddComponent<LineRenderer>();
+	public static LineRenderer DrawPoint(Vector3 point, Vector3 offset, Color color, float radius = 0.05f, int steps = 16, Transform parent = null)
+	{
+		return DrawCircle(point, offset, color, radius, steps, parent);
+	}
+
+	private static LineRenderer DrawBox(System.Func<int, Vector3> getCorner, Vector3 offset, Color color, Transform parent = null)
+	{
+		LineRenderer lr = CreateLineRenderer("Box_Line", parent);
+		lr.positionCount = 24; // 12 edges * 2
+		lr.startWidth = 0.02f;
+		lr.endWidth = 0.02f;
+		lr.material = new Material(Shader.Find("Sprites/Default"));
+		lr.startColor = color;
+		lr.endColor = color;
+		lr.loop = false;
+
+		Vector3[] c = new Vector3[8];
+		for (int i = 0; i < 8; i++)
+			c[i] = getCorner(i) + offset;
+
+		// 12 edges
+		Vector3[] edges = {
+			c[0], c[1], c[1], c[2], c[2], c[3], c[3], c[0], // bottom
+			c[4], c[5], c[5], c[6], c[6], c[7], c[7], c[4], // top
+			c[0], c[4], c[1], c[5], c[2], c[6], c[3], c[7]  // verticals
+		};
+
+		lr.SetPositions(edges);
+		return lr;
+	}
+
+	private static LineRenderer DrawCircle(Vector3 point, Vector3 offset, Color color, float radius = 0.05f, int steps = 16, Transform parent = null)
+	{
+		LineRenderer lr = CreateLineRenderer("Point_Line", parent);
 		lr.startWidth = lr.endWidth = 0.02f;
 		lr.material = new Material(Shader.Find("Sprites/Default"));
 		lr.startColor = lr.endColor = color;
 		lr.loop = false;
 
-		Vector3 center = point.P + offset;
+		Vector3 center = point + offset;
 		Vector3[] vertices = new Vector3[steps * 6];
 		int v = 0;
 
@@ -245,32 +265,52 @@ internal class CollisionDrawer
 		return lr;
 	}
 
-	private static LineRenderer DrawBox(System.Func<int, Vector3> getCorner, Vector3 offset, Color color, Transform parent = null)
+	private static LineRenderer CreateLineRenderer(string name, Transform parent)
 	{
-		GameObject go = new GameObject("Box_Line");
-		if (parent != null) go.transform.parent = parent;
+		GameObject go = new(name);
+		go.layer = layerForColliders;
 
-		LineRenderer lr = go.AddComponent<LineRenderer>();
-		lr.positionCount = 24; // 12 edges * 2
-		lr.startWidth = 0.02f;
-		lr.endWidth = 0.02f;
-		lr.material = new Material(Shader.Find("Sprites/Default"));
-		lr.startColor = color;
-		lr.endColor = color;
-		lr.loop = false;
+		if (parent != null)
+			go.transform.SetParent(parent);
 
-		Vector3[] c = new Vector3[8];
-		for (int i = 0; i < 8; i++)
-			c[i] = getCorner(i) + offset;
+		//if (collidersCamera == null)
+		//	CreateCamera();
 
-		// 12 edges
-		Vector3[] edges = {
-			c[0], c[1], c[1], c[2], c[2], c[3], c[3], c[0], // bottom
-			c[4], c[5], c[5], c[6], c[6], c[7], c[7], c[4], // top
-			c[0], c[4], c[1], c[5], c[2], c[6], c[3], c[7]  // verticals
-		};
+		return go.AddComponent<LineRenderer>();
+	}
 
-		lr.SetPositions(edges);
-		return lr;
+	private static void CreateCamera()
+	{
+		GameObject camObj = new("DebugMod_CollidersCamera");
+		collidersCamera = camObj.AddComponent<Camera>();
+		Camera mainCam = Camera.main;
+		camObj.transform.SetParent(mainCam.transform, false);
+		collidersCamera.fieldOfView = mainCam.fieldOfView;
+		camObj.transform.localPosition = Vector3.zero;
+		camObj.transform.localRotation = Quaternion.identity;
+		collidersCamera.cullingMask = 1 << layerForColliders;
+		collidersCamera.depth = 10;
+		collidersCamera.clearFlags = CameraClearFlags.Depth;
+		//mainCam.cullingMask = mainCam.cullingMask &= ~(1 << layerForColliders);
+		//mainCam.cullingMask = 536804407;
+		//Test();
+	}
+
+	private static void Test()
+	{
+		GameObject overlayCam = GameObject.Find("OverlayCamera");
+		GameObject world = overlayCam.transform.Find("World").gameObject;
+		GameObject newObj = new("test");
+		newObj.layer = LayerMask.NameToLayer("Overlay");
+		MeshFilter meshFilter = newObj.AddComponent<MeshFilter>();
+		MeshRenderer meshRend = newObj.AddComponent<MeshRenderer>();
+		meshFilter.mesh = world.GetComponent<MeshFilter>().mesh;
+		newObj.transform.SetParent(world.transform);
+		newObj.transform.localPosition = new Vector3(0, 0, 3.9f);
+		newObj.transform.localRotation = world.transform.localRotation;
+		Overlay overlay = newObj.AddComponent<Overlay>();
+		overlay._camera = overlayCam.GetComponent<Camera>();
+		overlay._texCamera = collidersCamera;
+		overlay._mesh = overlay.GetComponent<MeshRenderer>();
 	}
 }
