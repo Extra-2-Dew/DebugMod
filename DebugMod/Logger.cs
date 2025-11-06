@@ -11,7 +11,7 @@ internal static class Logger
 	/// Logs a message to the BepInEx console.
 	/// </summary>
 	/// <param name="message">The message to log.</param>
-	public static void Log(string message)
+	public static void Log(object message)
 	{
 		Plugin.Logger.LogMessage(message);
 	}
@@ -20,7 +20,7 @@ internal static class Logger
 	/// Logs a warning to the BepInEx console.
 	/// </summary>
 	/// <param name="message">The message to log.</param>
-	public static void LogWarning(string message)
+	public static void LogWarning(object message)
 	{
 		Plugin.Logger.LogWarning(message);
 	}
@@ -29,7 +29,7 @@ internal static class Logger
 	/// Logs an error to the BepInEx console.
 	/// </summary>
 	/// <param name="message">The message to log.</param>
-	public static void LogError(string message, bool includeTrace = true)
+	public static void LogError(object message, bool includeTrace = true)
 	{
 		Plugin.Logger.LogError(includeTrace ? message + "\n" + GetStackTrace() : message);
 	}
