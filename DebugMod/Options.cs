@@ -1,58 +1,12 @@
 ﻿using BepInEx.Configuration;
+using ID2.DebugMod.Cheats;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using ColliderType = ID2.DebugMod.CollisionViewer.ColliderType;
 
 namespace ID2.DebugMod;
 
 internal class Options
 {
-	#region Collision Viewer
-	private static ConfigEntry<bool> collisionViewer_toggle;
-	private static ConfigEntry<KeyboardShortcut> collisionViewer_toggleHotkey;
-	private static ConfigEntry<ColliderType> collisionViewer_showColliderTypes;
-	private static ConfigEntry<Color> collisionViewer_EntityColor;
-	private static ConfigEntry<Color> collisionViewer_HazardColor;
-	private static ConfigEntry<Color> collisionViewer_PushableColor;
-	private static ConfigEntry<Color> collisionViewer_StaticColor;
-	private static ConfigEntry<Color> collisionViewer_TransitionColor;
-	private static ConfigEntry<Color> collisionViewer_TriggerColor;
-	#endregion
-
-	public static bool CollisionViewerEnabled => collisionViewer_toggle.Value;
-	public static List<ColliderType> CollisionViewerEnabledColliders
-	{
-		get
-		{
-			ColliderType value = collisionViewer_showColliderTypes.Value;
-
-			if (value == ColliderType.None)
-				return [];
-
-			if (value == ColliderType.All)
-				return Enum.GetValues(typeof(ColliderType))
-					.Cast<ColliderType>()
-					.Where(c => c != ColliderType.None && c != ColliderType.All)
-					.ToList();
-
-			return Enum.GetValues(typeof(ColliderType))
-				.Cast<ColliderType>()
-				.Where(c => c != ColliderType.None && c != ColliderType.All && (value & c) != 0)
-				.ToList();
-		}
-	}
-	public static Dictionary<ColliderType, Color> ColliderColors { get; set; } = new()
-	{
-		{ ColliderType.Entity, Color.green },
-		{ ColliderType.Hazard, Color.green },
-		{ ColliderType.Pushable, Color.green },
-		{ ColliderType.Static, Color.green },
-		{ ColliderType.Transition, Color.green },
-		{ ColliderType.Trigger, Color.green },
-	};
-
 	public Options()
 	{
 		SetupCollisionViewerOptions();
@@ -60,127 +14,123 @@ internal class Options
 
 	public void CheckForHotkeys()
 	{
-		if (collisionViewer_toggleHotkey.Value.IsDown())
-			collisionViewer_toggle.Value = !collisionViewer_toggle.Value;
+		if (CollisionViewer.Options.toggleHotkeyEntry.Value.IsDown())
+			CollisionViewer.Options.toggleEntry.Value = !CollisionViewer.Options.toggleEntry.Value;
 	}
 
 	private void SetupCollisionViewerOptions()
 	{
-		collisionViewer_showColliderTypes = BindConfig(
-			section: "Collision Viewer",
-			key: "Collider Types to Show",
-			defaultValue: ColliderType.All,
-			description: "Select which collider types to show.",
-			onChanged: value =>
-			{
-				if (!collisionViewer_toggle.Value)
-					return;
+		string section = "Collision Viewer";
 
-				ColliderType newValue = collisionViewer_showColliderTypes.Value;
-				CollisionViewer.Instance.SelectedColliderTypesUpdated(newValue);
-			}
-		);
-
-#pragma warning disable IDE0200 // Remove unnecessary lambda expression
-		collisionViewer_toggle = BindConfig(
-			section: "Collision Viewer",
-			key: "Collision Viewer",
+		CollisionViewer.Options.toggleEntry = CreateOption
+		(
+			section: section,
+			key: "Toggle Collision Viewer",
+			description: "Toggle the display of colliders/hitboxes.",
+			order: 9,
 			defaultValue: false,
-			description: "Toggles the display of colliders/hitboxes.",
-			onChanged: value => { DebugMod.Instance.ToggleColliders(value); }
+			onChanged: value => CollisionViewer.Options.ToggleChanged(value)
 		);
-#pragma warning restore IDE0200 // Remove unnecessary lambda expression
 
-		collisionViewer_toggleHotkey = BindConfig(
-			section: "Collision Viewer",
-			key: "Collision Viewer Hotkey",
+		CollisionViewer.Options.showColliderTypesEntry = CreateOption
+		(
+			section: section,
+			key: "Collider Types to Show",
+			description: "Select which collider types to show.",
+			order: 8,
+			defaultValue: CollisionViewer.ColliderType.All,
+			onChanged: value => CollisionViewer.Options.SelectedColliderTypesUpdated(value)
+		);
+
+		CollisionViewer.Options.toggleHotkeyEntry = CreateOption
+		(
+			section: section,
+			key: "Toggle Hotkey",
+			description: "Pressing this key will toggle collision viewer.",
+			order: 7,
 			defaultValue: new KeyboardShortcut(KeyCode.F2),
-			description: "Toggls the display of colliders/hitboxes.",
 			alwaysDefault: false
 		);
 
-		collisionViewer_EntityColor = BindConfig(
-			section: "Collision Viewer",
+		CollisionViewer.Options.entityColorEntry = CreateOption
+		(
+			section: section,
 			key: "Color for Entity Colliders",
-			defaultValue: Utility.ConvertHexToColor(CollisionViewer.DefaultColliderColors[ColliderType.Entity]),
-			alwaysDefault: false,
-			onChanged: value =>
-			{
-				ColliderColors[ColliderType.Entity] = value;
-				CollisionViewer.Instance.ColorUpdated(ColliderType.Entity, value);
-			}
+			description: "",
+			order: 6,
+			defaultValue: Utility.ConvertHexToColor(CollisionViewer.Options.DefaultColliderColors[CollisionViewer.ColliderType.Entity]),
+			onChanged: value => CollisionViewer.Options.ColorUpdated(CollisionViewer.ColliderType.Entity, value),
+			alwaysDefault: false
 		);
-		ColliderColors[ColliderType.Entity] = collisionViewer_EntityColor.Value;
+		CollisionViewer.Options.ColliderColors[CollisionViewer.ColliderType.Entity] = CollisionViewer.Options.entityColorEntry.Value;
 
-		collisionViewer_HazardColor = BindConfig(
-			section: "Collision Viewer",
+		CollisionViewer.Options.hazardColorEntry = CreateOption
+		(
+			section: section,
 			key: "Color for Hazard Colliders",
-			defaultValue: Utility.ConvertHexToColor(CollisionViewer.DefaultColliderColors[ColliderType.Hazard]),
-			alwaysDefault: false,
-			onChanged: value =>
-			{
-				ColliderColors[ColliderType.Hazard] = value;
-				CollisionViewer.Instance.ColorUpdated(ColliderType.Hazard, value);
-			}
+			description: "",
+			order: 5,
+			defaultValue: Utility.ConvertHexToColor(CollisionViewer.Options.DefaultColliderColors[CollisionViewer.ColliderType.Hazard]),
+			onChanged: value => CollisionViewer.Options.ColorUpdated(CollisionViewer.ColliderType.Hazard, value),
+			alwaysDefault: false
 		);
-		ColliderColors[ColliderType.Hazard] = collisionViewer_HazardColor.Value;
+		CollisionViewer.Options.ColliderColors[CollisionViewer.ColliderType.Hazard] = CollisionViewer.Options.hazardColorEntry.Value;
 
-		collisionViewer_PushableColor = BindConfig(
-			section: "Collision Viewer",
+		CollisionViewer.Options.pushableColorEntry = CreateOption
+		(
+			section: section,
 			key: "Color for Pushable Colliders",
-			defaultValue: Utility.ConvertHexToColor(CollisionViewer.DefaultColliderColors[ColliderType.Pushable]),
-			alwaysDefault: false,
-			onChanged: value =>
-			{
-				ColliderColors[ColliderType.Pushable] = value;
-				CollisionViewer.Instance.ColorUpdated(ColliderType.Pushable, value);
-			}
+			description: "",
+			order: 4,
+			defaultValue: Utility.ConvertHexToColor(CollisionViewer.Options.DefaultColliderColors[CollisionViewer.ColliderType.Pushable]),
+			onChanged: value => CollisionViewer.Options.ColorUpdated(CollisionViewer.ColliderType.Pushable, value),
+			alwaysDefault: false
 		);
-		ColliderColors[ColliderType.Pushable] = collisionViewer_PushableColor.Value;
+		CollisionViewer.Options.ColliderColors[CollisionViewer.ColliderType.Pushable] = CollisionViewer.Options.pushableColorEntry.Value;
 
-		collisionViewer_StaticColor = BindConfig(
-			section: "Collision Viewer",
+		CollisionViewer.Options.staticColorEntry = CreateOption
+		(
+			section: section,
 			key: "Color for Static Colliders",
-			defaultValue: Utility.ConvertHexToColor(CollisionViewer.DefaultColliderColors[ColliderType.Static]),
-			alwaysDefault: false,
-			onChanged: value =>
-			{
-				ColliderColors[ColliderType.Static] = value;
-				CollisionViewer.Instance.ColorUpdated(ColliderType.Static, value);
-			}
+			description: "",
+			order: 3,
+			defaultValue: Utility.ConvertHexToColor(CollisionViewer.Options.DefaultColliderColors[CollisionViewer.ColliderType.Static]),
+			onChanged: value => CollisionViewer.Options.ColorUpdated(CollisionViewer.ColliderType.Static, value),
+			alwaysDefault: false
 		);
-		ColliderColors[ColliderType.Static] = collisionViewer_StaticColor.Value;
+		CollisionViewer.Options.ColliderColors[CollisionViewer.ColliderType.Static] = CollisionViewer.Options.staticColorEntry.Value;
 
-		collisionViewer_TransitionColor = BindConfig(
-			section: "Collision Viewer",
+		CollisionViewer.Options.transitionColorEntry = CreateOption
+		(
+			section: section,
 			key: "Color for Transition Colliders",
-			defaultValue: Utility.ConvertHexToColor(CollisionViewer.DefaultColliderColors[ColliderType.Transition]),
-			alwaysDefault: false,
-			onChanged: value =>
-			{
-				ColliderColors[ColliderType.Transition] = value;
-				CollisionViewer.Instance.ColorUpdated(ColliderType.Transition, value);
-			}
+			description: "",
+			order: 2,
+			defaultValue: Utility.ConvertHexToColor(CollisionViewer.Options.DefaultColliderColors[CollisionViewer.ColliderType.Transition]),
+			onChanged: value => CollisionViewer.Options.ColorUpdated(CollisionViewer.ColliderType.Transition, value),
+			alwaysDefault: false
 		);
-		ColliderColors[ColliderType.Transition] = collisionViewer_TransitionColor.Value;
+		CollisionViewer.Options.ColliderColors[CollisionViewer.ColliderType.Transition] = CollisionViewer.Options.transitionColorEntry.Value;
 
-		collisionViewer_TriggerColor = BindConfig(
-			section: "Collision Viewer",
+		CollisionViewer.Options.triggerColorEntry = CreateOption
+		(
+			section: section,
 			key: "Color for Trigger Colliders",
-			defaultValue: Utility.ConvertHexToColor(CollisionViewer.DefaultColliderColors[ColliderType.Trigger]),
-			alwaysDefault: false,
-			onChanged: value =>
-			{
-				ColliderColors[ColliderType.Trigger] = value;
-				CollisionViewer.Instance.ColorUpdated(ColliderType.Trigger, value);
-			}
+			description: "",
+			order: 1,
+			defaultValue: Utility.ConvertHexToColor(CollisionViewer.Options.DefaultColliderColors[CollisionViewer.ColliderType.Trigger]),
+			onChanged: value => CollisionViewer.Options.ColorUpdated(CollisionViewer.ColliderType.Trigger, value),
+			alwaysDefault: false
 		);
-		ColliderColors[ColliderType.Trigger] = collisionViewer_TriggerColor.Value;
+		CollisionViewer.Options.ColliderColors[CollisionViewer.ColliderType.Trigger] = CollisionViewer.Options.triggerColorEntry.Value;
 	}
 
-	private ConfigEntry<T> BindConfig<T>(string section, string key, T defaultValue, string description = "", bool alwaysDefault = true, Action<T> onChanged = null)
+	private ConfigEntry<T> CreateOption<T>(string section, string key, string description, int order, T defaultValue, Action<T> onChanged = null, bool alwaysDefault = true, ConfigurationManagerAttributes attributes = null, AcceptableValueBase acceptableValues = null)
 	{
-		ConfigEntry<T> entry = Plugin.Instance.Config.Bind(section, key, defaultValue, description);
+		ConfigurationManagerAttributes attr = attributes ?? new();
+		attr.Order = order;
+		ConfigDescription desc = new ConfigDescription(description, acceptableValues, attr);
+		ConfigEntry<T> entry = Plugin.Instance.Config.Bind(section, key, defaultValue, desc);
 
 		if (alwaysDefault)
 			entry.Value = defaultValue;

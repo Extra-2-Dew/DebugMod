@@ -1,6 +1,8 @@
-﻿using HarmonyLib;
+﻿using BepInEx.Configuration;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace ID2.DebugMod;
@@ -33,6 +35,7 @@ internal class CollisionViewer : MonoBehaviour
 		new(ColliderType.Static, t => t.IsStatic),
 		new(ColliderType.Trigger, t => t.IsTrigger),
 	};
+	private readonly int puzzleLayer = LayerMask.NameToLayer("Puzzle");
 	private readonly int dynamiteLayer = LayerMask.NameToLayer("Dynamite");
 	private Transform lineHolder;
 	private Transform lineHolderEntity;
@@ -43,15 +46,6 @@ internal class CollisionViewer : MonoBehaviour
 	private Transform lineHolderTrigger;
 
 	public static CollisionViewer Instance => instance;
-	public static Dictionary<ColliderType, string> DefaultColliderColors { get; } = new()
-	{
-		{ ColliderType.Entity, "#ffff00" },
-		{ ColliderType.Hazard, "#ff0000" },
-		{ ColliderType.Pushable, "#ff7b00" },
-		{ ColliderType.Static, "#00ff00" },
-		{ ColliderType.Transition, "#ffffff" },
-		{ ColliderType.Trigger, "#00ffff" },
-	};
 
 	private void Awake()
 	{
@@ -80,39 +74,6 @@ internal class CollisionViewer : MonoBehaviour
 	{
 		foreach (BC_Collider collider in trackedColliders)
 			DrawOrUpdateCollider(collider);
-	}
-
-	public void SelectedColliderTypesUpdated(ColliderType selectedColliderTypes)
-	{
-		lineHolderEntity.gameObject.SetActive((selectedColliderTypes & ColliderType.Entity) != 0);
-		lineHolderHazard.gameObject.SetActive((selectedColliderTypes & ColliderType.Hazard) != 0);
-		lineHolderPushable.gameObject.SetActive((selectedColliderTypes & ColliderType.Pushable) != 0);
-		lineHolderStatic.gameObject.SetActive((selectedColliderTypes & ColliderType.Static) != 0);
-		lineHolderTransition.gameObject.SetActive((selectedColliderTypes & ColliderType.Transition) != 0);
-		lineHolderTrigger.gameObject.SetActive((selectedColliderTypes & ColliderType.Trigger) != 0);
-	}
-
-	public void ColorUpdated(ColliderType type, Color newColor)
-	{
-		Transform lineParent = type switch
-		{
-			ColliderType.Entity => lineHolderEntity,
-			ColliderType.Hazard => lineHolderHazard,
-			ColliderType.Pushable => lineHolderPushable,
-			ColliderType.Static => lineHolderStatic,
-			ColliderType.Transition => lineHolderTransition,
-			ColliderType.Trigger => lineHolderTrigger,
-			_ => null
-		};
-
-		if (lineParent == null)
-			return;
-
-		foreach (LineRenderer line in lineParent.GetComponentsInChildren<LineRenderer>())
-		{
-			line.startColor = newColor;
-			line.endColor = newColor;
-		}
 	}
 
 	private static void TrackCollider(BC_Collider collider)
@@ -147,14 +108,23 @@ internal class CollisionViewer : MonoBehaviour
 
 		ColliderType? colType = GetColliderType(collider);
 
-		if (colType == null || !Options.CollisionViewerEnabledColliders.Contains((ColliderType)colType))
+		if (colType == null || !Options.EnabledColliders.Contains((ColliderType)colType))
 			return;
 
 		Color color = GetColorForColliderType((ColliderType)colType);
 
+		// Update ice block's position with each spawn
+		if (collider.Shape is BC_AABB ice && collider.Layer == puzzleLayer && collider.name.StartsWith("SliceIceBlock"))
+		{
+			ice.P = collider.transform.position;
+			ice.P.y += 0.5f;
+		}
 		// Update dynamite's position with each spawn
-		if (collider.Shape is BC_OBB dyna && collider.Layer == dynamiteLayer)
-			dyna.P = new Vector3(collider.transform.position.x, dyna.P.y, collider.transform.position.z);
+		else if (collider.Shape is BC_OBB dyna && collider.Layer == dynamiteLayer)
+		{
+			dyna.P = collider.transform.position;
+			dyna.P.y += 0.5f;
+		}
 
 		Transform lineParent = colType switch
 		{
@@ -230,6 +200,102 @@ internal class CollisionViewer : MonoBehaviour
 			return color;
 
 		return Color.green;
+	}
+
+	public struct Options
+	{
+		public static ConfigEntry<bool> toggleEntry;
+		public static ConfigEntry<ColliderType> showColliderTypesEntry;
+		public static ConfigEntry<KeyboardShortcut> toggleHotkeyEntry;
+		public static ConfigEntry<Color> entityColorEntry;
+		public static ConfigEntry<Color> hazardColorEntry;
+		public static ConfigEntry<Color> pushableColorEntry;
+		public static ConfigEntry<Color> staticColorEntry;
+		public static ConfigEntry<Color> transitionColorEntry;
+		public static ConfigEntry<Color> triggerColorEntry;
+
+		public static List<ColliderType> EnabledColliders
+		{
+			get
+			{
+				ColliderType value = showColliderTypesEntry.Value;
+
+				if (value == ColliderType.None)
+					return [];
+
+				if (value == ColliderType.All)
+					return Enum.GetValues(typeof(ColliderType))
+						.Cast<ColliderType>()
+						.Where(c => c != ColliderType.None && c != ColliderType.All)
+						.ToList();
+
+				return Enum.GetValues(typeof(ColliderType))
+					.Cast<ColliderType>()
+					.Where(c => c != ColliderType.None && c != ColliderType.All && (value & c) != 0)
+					.ToList();
+			}
+		}
+		public static Dictionary<ColliderType, Color> ColliderColors { get; set; } = new()
+		{
+			{ ColliderType.Entity, Color.green },
+			{ ColliderType.Hazard, Color.green },
+			{ ColliderType.Pushable, Color.green },
+			{ ColliderType.Static, Color.green },
+			{ ColliderType.Transition, Color.green },
+			{ ColliderType.Trigger, Color.green },
+		};
+		public static Dictionary<ColliderType, string> DefaultColliderColors { get; } = new()
+	{
+		{ ColliderType.Entity, "#ffff00" },
+		{ ColliderType.Hazard, "#ff0000" },
+		{ ColliderType.Pushable, "#ff7b00" },
+		{ ColliderType.Static, "#00ff00" },
+		{ ColliderType.Transition, "#ffffff" },
+		{ ColliderType.Trigger, "#00ffff" },
+	};
+
+		public static void ToggleChanged(bool value)
+		{
+			DebugMod.Instance.ToggleColliders(value);
+		}
+
+		public static void SelectedColliderTypesUpdated(ColliderType value)
+		{
+			if (!toggleEntry.Value)
+				return;
+
+			Instance.lineHolderEntity.gameObject.SetActive((value & ColliderType.Entity) != 0);
+			Instance.lineHolderHazard.gameObject.SetActive((value & ColliderType.Hazard) != 0);
+			Instance.lineHolderPushable.gameObject.SetActive((value & ColliderType.Pushable) != 0);
+			Instance.lineHolderStatic.gameObject.SetActive((value & ColliderType.Static) != 0);
+			Instance.lineHolderTransition.gameObject.SetActive((value & ColliderType.Transition) != 0);
+			Instance.lineHolderTrigger.gameObject.SetActive((value & ColliderType.Trigger) != 0);
+		}
+
+		public static void ColorUpdated(ColliderType type, Color value)
+		{
+			ColliderColors[type] = value;
+
+			Transform lineParent = type switch
+			{
+				ColliderType.Entity => Instance.lineHolderEntity,
+				ColliderType.Hazard => Instance.lineHolderHazard,
+				ColliderType.Pushable => Instance.lineHolderPushable,
+				ColliderType.Static => Instance.lineHolderStatic,
+				ColliderType.Transition => Instance.lineHolderTransition,
+				ColliderType.Trigger => Instance.lineHolderTrigger,
+				_ => null
+			};
+
+			if (lineParent == null)
+				return;
+
+			foreach (LineRenderer line in lineParent.GetComponentsInChildren<LineRenderer>())
+			{
+				line.startColor = value;
+				line.endColor = value;
+			}
+		}
 	}
 
 	private struct DrawnColliderInfo
