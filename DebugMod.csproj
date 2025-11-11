@@ -47,13 +47,14 @@
 		</Reference>
 	</ItemGroup>
 
+	<ItemGroup>
+		<Resources Include="$(ProjectDir)Resources\**\*.*" />
+		<EmbeddedResource Include="@(Resources)" />
+	</ItemGroup>
+
 	<Target Name="LoadChecks" BeforeTargets="PrepareForBuild">
 		<!-- Warn if GameInstallPath is not defined -->
-		<Error
-			Condition="'$(GameInstallPath)' == '' Or !Exists('$(GameInstallPath)')"
-			Text="GameInstallPath not found or specified. Please define GameInstallPath in the config.targets file."
-			File="$(ProjectDir)config.targets"
-		/>
+		<Error Condition="'$(GameInstallPath)' == '' Or !Exists('$(GameInstallPath)')" Text="GameInstallPath not found or specified. Please define GameInstallPath in the config.targets file." File="$(ProjectDir)config.targets" />
 	</Target>
 
 	<Target Name="PreBuildChecks" BeforeTargets="PreBuildEvent">

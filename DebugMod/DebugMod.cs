@@ -5,6 +5,7 @@ namespace ID2.DebugMod;
 internal class DebugMod : MonoBehaviour
 {
 	private static DebugMod instance;
+	private DebugOverlay debugOverlay;
 	private CollisionViewer colViewer;
 
 	public static DebugMod Instance => instance;
@@ -12,8 +13,13 @@ internal class DebugMod : MonoBehaviour
 	private void Awake()
 	{
 		instance = this;
-
 		DontDestroyOnLoad(gameObject);
+	}
+
+	public void ToggleDebugOverlay(bool show)
+	{
+		debugOverlay ??= gameObject.AddComponent<DebugOverlay>();
+		debugOverlay.enabled = show;
 	}
 
 	public void ToggleColliders(bool show)

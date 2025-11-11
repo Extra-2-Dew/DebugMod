@@ -5,8 +5,9 @@ using System.Collections;
 using UnityEngine;
 
 namespace ID2.DebugMod;
+
 [BepInPlugin("id2.DebugMod", "DebugMod", "0.1.0")]
-[BepInDependency("ModCore")]
+[BepInDependency("id2.ModCore")]
 [BepInDependency("com.bepis.bepinex.configurationmanager", BepInDependency.DependencyFlags.SoftDependency)]
 public class Plugin : BaseUnityPlugin
 {
@@ -46,7 +47,9 @@ public class Plugin : BaseUnityPlugin
 		if (!initialized)
 			return;
 
-		options.CheckForHotkeys();
+		// Must set up options here due to Bepinex bug with KeyboardShortcut being used before UnityEngine finishes intiliaizes
+		if (!options.HasSetup)
+			options.Setup();
 	}
 
 	/// <summary>

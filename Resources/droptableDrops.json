@@ -1,0 +1,90 @@
+﻿{
+	"tier1": {
+		"0": "Red Heart",
+		"1": "",
+		"2": "",
+		"3": "",
+		"4": "Red Heart",
+		"5": "",
+		"6": "",
+		"7": "",
+		"8": "",
+		"9": "Red Heart",
+		"10": "",
+		"11": "",
+		"12": "",
+		"13": "Red Heart",
+		"14": "",
+		"15": "Apple"
+	},
+	"tier1Super": {
+		"0": "Lightning",
+		"1": "Grapes"
+	},
+	"tier2": {
+		"0": "Red Heart",
+		"1": "",
+		"2": "",
+		"3": "Red Heart",
+		"4": "",
+		"5": "",
+		"6": "Red Heart",
+		"7": "Lightning",
+		"8": "",
+		"9": "Red Heart",
+		"10": "Red Heart",
+		"11": "",
+		"12": "",
+		"13": "Red Heart",
+		"14": "",
+		"15": "Banana"
+	},
+	"tier2Super": {
+		"0": "Blue Heart",
+		"1": "Strawberry"
+	},
+	"tier3": {
+		"0": "Red Heart",
+		"1": "",
+		"2": "Blue Heart",
+		"3": "",
+		"4": "Red Heart",
+		"5": "Red Heart",
+		"6": "Lightning",
+		"7": "Red Heart",
+		"8": "",
+		"9": "Blue Heart",
+		"10": "",
+		"11": "",
+		"12": "Red Heart",
+		"13": "",
+		"14": "Red Heart",
+		"15": "Grapes"
+	},
+	"tier3Super": {
+		"0": "Yellow Heart",
+		"1": "Apple"
+	},
+	"tier4": {
+		"0": "Blue Heart",
+		"1": "Red Heart",
+		"2": "Blue Heart",
+		"3": "Red Heart",
+		"4": "Lightning",
+		"5": "Red Heart",
+		"6": "Blue Heart",
+		"7": "Red Heart",
+		"8": "",
+		"9": "Blue Heart",
+		"10": "Red Heart",
+		"11": "",
+		"12": "Blue Heart",
+		"13": "Red Heart",
+		"14": "Blue Heart",
+		"15": "Strawberry"
+	},
+	"tier4Super": {
+		"0": "Yellow Heart",
+		"1": "Banana"
+	}
+}

@@ -54,7 +54,7 @@ internal class CollisionViewer : MonoBehaviour
 
 	private void OnEnable()
 	{
-		Events.OnPlayerSpawn += OnPlayerSpawn;
+		//Events.OnPlayerSpawn += OnPlayerSpawn;
 		Init();
 
 		Logger.Log("Collision viewer is enabled.");
@@ -62,7 +62,7 @@ internal class CollisionViewer : MonoBehaviour
 
 	private void OnDisable()
 	{
-		Events.OnPlayerSpawn -= OnPlayerSpawn;
+		//Events.OnPlayerSpawn -= OnPlayerSpawn;
 
 		drawnColliders.Clear();
 		Destroy(lineHolder.gameObject);
@@ -244,15 +244,20 @@ internal class CollisionViewer : MonoBehaviour
 			{ ColliderType.Transition, Color.green },
 			{ ColliderType.Trigger, Color.green },
 		};
-		public static Dictionary<ColliderType, string> DefaultColliderColors { get; } = new()
-	{
-		{ ColliderType.Entity, "#ffff00" },
-		{ ColliderType.Hazard, "#ff0000" },
-		{ ColliderType.Pushable, "#ff7b00" },
-		{ ColliderType.Static, "#00ff00" },
-		{ ColliderType.Transition, "#ffffff" },
-		{ ColliderType.Trigger, "#00ffff" },
-	};
+
+		public readonly struct Defaults
+		{
+			public static Dictionary<ColliderType, string> DefaultColliderColors { get; } = new()
+			{
+				{ ColliderType.Entity, "#ffff00" },
+				{ ColliderType.Hazard, "#ff0000" },
+				{ ColliderType.Pushable, "#ff7b00" },
+				{ ColliderType.Static, "#00ff00" },
+				{ ColliderType.Transition, "#ffffff" },
+				{ ColliderType.Trigger, "#00ffff" },
+			};
+			public static KeyboardShortcut ToggleHotkeyDefault { get; } = new(KeyCode.F2);
+		}
 
 		public static void ToggleChanged(bool value)
 		{
